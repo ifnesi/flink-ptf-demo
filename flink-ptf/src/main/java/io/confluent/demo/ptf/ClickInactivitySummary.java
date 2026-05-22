@@ -1,6 +1,7 @@
 package io.confluent.demo.ptf;
 
 import org.apache.flink.table.annotation.ArgumentHint;
+import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.StateHint;
 import org.apache.flink.table.functions.ProcessTableFunction;
 import org.apache.flink.types.Row;
@@ -28,6 +29,8 @@ import static org.apache.flink.table.annotation.ArgumentTrait.SET_SEMANTIC_TABLE
  * Framework auto-prepends the partition key (user_id) and the row event time,
  * so the SQL-visible output is (user_id, $rowtime, detected_at, click_counts).
  */
+
+@DataTypeHint("ROW<detected_at TIMESTAMP_LTZ(3), click_counts ARRAY<ROW<product_id STRING, product_name STRING, count INT>>>")
 public class ClickInactivitySummary extends ProcessTableFunction<Row> {
 
     /** Per-user managed state. */
@@ -45,7 +48,7 @@ public class ClickInactivitySummary extends ProcessTableFunction<Row> {
             Context ctx,
             @StateHint ClickState state,
             @ArgumentHint({SET_SEMANTIC_TABLE, REQUIRE_ON_TIME}) Row input,
-            Integer timeoutSecs) {
+            int timeoutSecs) {
 
         String productId   = input.getFieldAs("product_id");
         String productName = input.getFieldAs("product_name");
@@ -68,6 +71,9 @@ public class ClickInactivitySummary extends ProcessTableFunction<Row> {
 
         collect(Row.of(t.time(), items));
 
+        // Reset the partition so a returning user starts a new inactivity window instead of
+        // retaining the click counter indefinitely. The fired timer is already consumed, so
+        // only state needs clearing.
         ctx.clearAllState();
     }
 }

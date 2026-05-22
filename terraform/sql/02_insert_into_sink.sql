@@ -8,8 +8,8 @@ SELECT
     detected_at,
     click_counts
 FROM inactivity_summary(
-    input        => TABLE `user-clicks` PARTITION BY user_id,
-    timeout_secs => 10,
-    on_time      => DESCRIPTOR(`$rowtime`),
-    uid          => 'inactivity-summary-v1'
+    TABLE `user-clicks` PARTITION BY user_id,
+    10,
+    on_time => DESCRIPTOR(click_ts)
 );
+

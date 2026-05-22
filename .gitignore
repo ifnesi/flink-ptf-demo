@@ -1,5 +1,4 @@
 # General
-notes.txt
 .claude
 
 # Terraform
@@ -7,8 +6,10 @@ terraform/.terraform/
 terraform/.terraform.lock.hcl
 terraform/terraform.tfstate
 terraform/terraform.tfstate.backup
+terraform/.terraform.tfstate.lock.info
 terraform/*.tfvars
 terraform/crash.log
+terraform/.env
 
 # Java / Maven
 flink-ptf/target/

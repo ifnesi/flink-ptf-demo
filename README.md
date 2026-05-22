@@ -11,14 +11,14 @@ All Confluent Cloud resources (environment, Kafka Basic cluster in AWS `us-east-
 ## Architecture
 
 ```
-React UI  ──[click]─>  Flask API  ──[Avro produce]─>  Kafka: user-clicks
-   ▲                      │                                   │
-   │                      ▼                                   ▼
-   │                SSE consumer                 Flink PTF (per-user state,
-   │                 (2 topics)                  10s event-time inactivity timer)
-   │                      ▲                                   │
-   │                      │                                   ▼
-   └──────── SSE stream ──┘   <─[Avro consumer]──  Kafka: user-clicks-summary
+[React UI]  ──[Click]─>  Flask API  ──[AVRO Produce]─>  Kafka: user-clicks
+   ▲                        │                                   │
+   │                        ▼                                   ▼
+   │                  SSE consumer                    Flink PTF (per-user state,
+   │                   (2 topics)                  10s event-time inactivity timer)
+   │                        ▲                                   │
+   │                        │                                   ▼
+   └──────── SSE Stream ────┘   <─[AVRO Consumer]──  Kafka: user-clicks-summary
 ```
 
 ## Why PTFs matter
@@ -55,17 +55,38 @@ This demo's `ClickInactivitySummary` is a tiny example of the pattern — the sa
 
 ## Quickstart
 
+### Using the automated scripts (recommended)
+
+```bash
+# 1) Configure Confluent Cloud credentials
+cp terraform/.env.example terraform/.env
+# Edit terraform/.env with your Confluent Cloud API key/secret (organization-level)
+
+# 2) Start the demo (builds JAR, provisions resources, starts backend)
+./start.sh
+# Opens http://localhost:5001 — Press [CTRL]-C to stop the backend
+
+# 3) Tear down when done
+./stop.sh
+```
+
+### Manual step-by-step (alternative)
+
+<details>
+<summary>Click to expand manual instructions</summary>
+
 ```bash
 # 1) Build the PTF JAR — Terraform reads it from flink-ptf/target/
 cd flink-ptf && mvn -q clean package && cd ..
 
 # 2) Provision Confluent Cloud (creates env, cluster, SR, topics, schemas,
 #    compute pool, uploads JAR, registers PTF, starts INSERT INTO statement)
-export CONFLUENT_CLOUD_API_KEY=...
-export CONFLUENT_CLOUD_API_SECRET=...
 cd terraform
+cp .env.example .env     # Update .env with the Confluent Cloud credentials (organization-level, not Kafka-level)
+source .env
 terraform init
-terraform apply              # ~5 minutes; writes ../backend/.env on success
+terraform plan           # Check everything's ok
+terraform apply          # ~5 minutes; writes ../backend/.env on success
 cd ..
 
 # 3) Start the backend (it serves the UI too, at http://localhost:5001)
@@ -75,11 +96,12 @@ source .venv/bin/activate
 pip install -r requirements.txt
 flask --app app run -p 5001  # Press [CTRL]-C to stop it
 
-
 # 4) Tear it down when done
 cd ..
 cd terraform && terraform destroy
 ```
+
+</details>
 
 ## How the PTF works
 
@@ -125,5 +147,6 @@ flink-ptf-demo/
 ## References
 
 - [Confluent Flink PTF docs](https://docs.confluent.io/cloud/current/flink/concepts/process-table-functions.html)
+- [Create a Process Table Function in Confluent Cloud for Apache Flink](https://docs.confluent.io/cloud/current/flink/how-to-guides/create-ptf.html)
 - [Example_11_ProcessTableFunction.java](https://github.com/confluentinc/flink-table-api-java-examples/blob/master/src/main/java/io/confluent/flink/examples/table/Example_11_ProcessTableFunction.java)
 - [`confluent_flink_artifact` Terraform example](https://github.com/confluentinc/terraform-provider-confluent/tree/master/examples/configurations/flink_artifact)

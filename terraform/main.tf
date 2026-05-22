@@ -174,24 +174,6 @@ resource "confluent_schema" "user_clicks_value" {
   depends_on = [confluent_kafka_topic.topics]
 }
 
-resource "confluent_schema" "user_clicks_summary_value" {
-  schema_registry_cluster {
-    id = data.confluent_schema_registry_cluster.demo.id
-  }
-  rest_endpoint = data.confluent_schema_registry_cluster.demo.rest_endpoint
-
-  subject_name = "user-clicks-summary-value"
-  format       = "AVRO"
-  schema       = file("${path.module}/schemas/user-clicks-summary-value.avsc")
-
-  credentials {
-    key    = confluent_api_key.sr_key.id
-    secret = confluent_api_key.sr_key.secret
-  }
-
-  depends_on = [confluent_kafka_topic.topics]
-}
-
 # ---------------------------------------------------------------------------
 # Render backend/.env from outputs
 # ---------------------------------------------------------------------------

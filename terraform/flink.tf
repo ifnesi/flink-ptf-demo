@@ -63,7 +63,65 @@ resource "confluent_flink_statement" "register_function" {
 
   depends_on = [
     confluent_schema.user_clicks_value,
-    confluent_schema.user_clicks_summary_value,
+  ]
+}
+
+# Alter the user-clicks table to add watermark for event-time processing
+resource "confluent_flink_statement" "alter_table_watermark" {
+  organization {
+    id = data.confluent_organization.demo.id
+  }
+  environment {
+    id = confluent_environment.demo.id
+  }
+  compute_pool {
+    id = confluent_flink_compute_pool.demo.id
+  }
+  principal {
+    id = confluent_service_account.app_demo.id
+  }
+
+  statement  = file("${path.module}/sql/00_alter_table_watermark.sql")
+  properties = local.flink_statement_properties
+
+  rest_endpoint = data.confluent_flink_region.demo.rest_endpoint
+
+  credentials {
+    key    = confluent_api_key.flink_key.id
+    secret = confluent_api_key.flink_key.secret
+  }
+
+  depends_on = [confluent_flink_statement.register_function]
+}
+
+# Create the sink table for user-clicks-summary
+resource "confluent_flink_statement" "create_sink_table" {
+  organization {
+    id = data.confluent_organization.demo.id
+  }
+  environment {
+    id = confluent_environment.demo.id
+  }
+  compute_pool {
+    id = confluent_flink_compute_pool.demo.id
+  }
+  principal {
+    id = confluent_service_account.app_demo.id
+  }
+
+  statement  = file("${path.module}/sql/01_create_sink_table.sql")
+  properties = local.flink_statement_properties
+
+  rest_endpoint = data.confluent_flink_region.demo.rest_endpoint
+
+  credentials {
+    key    = confluent_api_key.flink_key.id
+    secret = confluent_api_key.flink_key.secret
+  }
+
+  depends_on = [
+    confluent_flink_statement.alter_table_watermark,
+    confluent_schema.user_clicks_value,
   ]
 }
 
@@ -82,7 +140,7 @@ resource "confluent_flink_statement" "insert_into_sink" {
     id = confluent_service_account.app_demo.id
   }
 
-  statement  = file("${path.module}/sql/01_insert_into_sink.sql")
+  statement  = file("${path.module}/sql/02_insert_into_sink.sql")
   properties = local.flink_statement_properties
 
   rest_endpoint = data.confluent_flink_region.demo.rest_endpoint
@@ -92,5 +150,7 @@ resource "confluent_flink_statement" "insert_into_sink" {
     secret = confluent_api_key.flink_key.secret
   }
 
-  depends_on = [confluent_flink_statement.register_function]
+  depends_on = [
+    confluent_flink_statement.create_sink_table,
+  ]
 }

@@ -47,10 +47,5 @@ variable "topics" {
       cleanup_policy   = "delete"
       retention_ms     = "604800000" # 7 days
     }
-    "user-clicks-summary" = {
-      partitions_count = 6
-      cleanup_policy   = "delete"
-      retention_ms     = "604800000" # 7 days
-    }
   }
 }
