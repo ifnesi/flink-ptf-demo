@@ -10,6 +10,8 @@ SELECT
 FROM inactivity_summary(
     TABLE `user-clicks` PARTITION BY user_id,
     10,
-    on_time => DESCRIPTOR(click_ts)
+    on_time => DESCRIPTOR(`click_ts`),
+    uid => 'click-inactivity-v1'
 );
+
 
