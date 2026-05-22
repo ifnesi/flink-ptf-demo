@@ -6,7 +6,7 @@ CREATE TABLE `user-clicks-summary` (
     product_id STRING,
     product_name STRING,
     `count` INT
-  >> NOT NULL
+  > > NOT NULL
 )
 DISTRIBUTED BY (`key`)
 WITH (
