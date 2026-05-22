@@ -1,0 +1,11 @@
+{
+  "type": "record",
+  "name": "UserClick",
+  "namespace": "io.confluent.demo",
+  "fields": [
+    {"name": "user_id",      "type": "string"},
+    {"name": "product_id",   "type": "string"},
+    {"name": "product_name", "type": "string"},
+    {"name": "click_ts",     "type": {"type": "long", "logicalType": "timestamp-millis"}}
+  ]
+}

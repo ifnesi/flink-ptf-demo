@@ -1,0 +1,37 @@
+# General
+notes.txt
+.claude
+
+# Terraform
+terraform/.terraform/
+terraform/.terraform.lock.hcl
+terraform/terraform.tfstate
+terraform/terraform.tfstate.backup
+terraform/*.tfvars
+terraform/crash.log
+
+# Java / Maven
+flink-ptf/target/
+flink-ptf/.mvn/
+flink-ptf/mvnw
+flink-ptf/mvnw.cmd
+*.class
+
+# Python
+backend/.venv/
+backend/.env
+__pycache__/
+*.pyc
+.python-version
+
+# Node
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+npm-debug.log*
+
+# IDE
+.idea/
+.vscode/
+*.iml
+.DS_Store
