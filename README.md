@@ -20,6 +20,22 @@ React UI  ─click→  Flask API  ─Avro produce→  Kafka: user-clicks
    └──── SSE stream ──┘   ←─Avro consume─  Kafka: user-clicks-summary
 ```
 
+## Why PTFs matter
+
+Classic stream processing is purely **reactive** — an operator only runs when an event arrives. If nothing happens, nothing happens. That makes a whole class of real-world problems awkward to express, because they're defined by the **absence** of an event, not its presence:
+
+- **Abandoned carts** — a shopper added items but never checked out
+- **SLA breaches** — a response never came back within 30 s
+- **Idle sessions** — no activity for 10 minutes; time to log the user out
+- **Silent devices** — an IoT sensor hasn't reported in for an hour
+- **Stuck workflows** — a payment was authorised but never captured
+
+PTFs change that. Alongside the usual "react to an input row," a PTF can **schedule a future trigger** via an event-time or processing-time timer. When that timer fires, the PTF emits its own event — a new fact in the stream that downstream consumers can act on, alert on, or join with other data.
+
+In short: **PTFs let your stream generate events from silence.** That's the difference between knowing *"the user clicked Pizza"* and knowing *"the user stopped clicking."* Both are valuable. Only one is reachable with plain stateful operators.
+
+This demo's `ClickInactivitySummary` is a tiny example of the pattern — the same shape solves cart-abandonment, SLA breach, idle-session, and silent-device problems.
+
 ## Prerequisites
 
 - A [Confluent Cloud](https://confluent.cloud/signup) account with a [**Cloud API key/secret**](https://docs.confluent.io/cloud/current/security/authenticate/workload-identities/service-accounts/api-keys/manage-api-keys.html#add-an-api-key) (organization-level, not Kafka-level)
