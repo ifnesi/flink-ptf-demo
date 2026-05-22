@@ -11,13 +11,14 @@ All Confluent Cloud resources (environment, Kafka Basic cluster in AWS `us-east-
 ## Architecture
 
 ```
-React UI  ─click→  Flask API  ─Avro produce→  Kafka: user-clicks
-   ▲                  │                              │
-   │                  ▼                              ▼
-   │           SSE consumer            Flink PTF (per-user state,
-   │           (2 topics)              10s event-time inactivity timer)
-   │                  ▲                              │
-   └──── SSE stream ──┘   ←─Avro consume─  Kafka: user-clicks-summary
+React UI  ──[click]─>  Flask API  ──[Avro produce]─>  Kafka: user-clicks
+   ▲                      │                                   │
+   │                      ▼                                   ▼
+   │                SSE consumer                 Flink PTF (per-user state,
+   │                 (2 topics)                  10s event-time inactivity timer)
+   │                      ▲                                   │
+   │                      │                                   ▼
+   └──────── SSE stream ──┘   <─[Avro consumer]──  Kafka: user-clicks-summary
 ```
 
 ## Why PTFs matter
