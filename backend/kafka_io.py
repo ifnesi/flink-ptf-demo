@@ -239,7 +239,7 @@ class KafkaIO:
             "type": "summary",
             "user": key,
             "detected_at": value.get("detected_at"),
-            "click_counts": value.get("click_counts", []),
+            "total_clicks": value.get("total_clicks", 0),
         }
 
 

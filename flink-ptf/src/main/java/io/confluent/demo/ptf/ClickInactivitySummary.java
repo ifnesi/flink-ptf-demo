@@ -1,15 +1,12 @@
 package io.confluent.demo.ptf;
 
 import org.apache.flink.table.annotation.ArgumentHint;
-import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.StateHint;
 import org.apache.flink.table.functions.ProcessTableFunction;
 import org.apache.flink.types.Row;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.HashMap;
-import java.util.Map;
 
 import static org.apache.flink.table.annotation.ArgumentTrait.REQUIRE_ON_TIME;
 import static org.apache.flink.table.annotation.ArgumentTrait.SET_SEMANTIC_TABLE;
@@ -17,59 +14,44 @@ import static org.apache.flink.table.annotation.ArgumentTrait.SET_SEMANTIC_TABLE
 /**
  * Per-user click inactivity summary.
  *
- * Maintains a per-user (partition) map of product_id -> (product_name, count).
- * After {@code timeoutSecs} of event-time inactivity, emits one row containing
- * the detection timestamp and the full list of product counts, then clears state.
- *
- * Output shape (from {@code collect}): ROW&lt;detected_at TIMESTAMP_LTZ(3),
- *                                          click_counts ARRAY&lt;ROW&lt;product_id STRING,
- *                                                                  product_name STRING,
- *                                                                  count INT&gt;&gt;&gt;
- *
- * Framework auto-prepends the partition key (user_id) and the row event time,
- * so the SQL-visible output is (user_id, $rowtime, detected_at, click_counts).
+ * Maintains a per-user (partition) total click count.
+ * After the configured timeout of event-time inactivity, emits the total click count, then clears state.
  */
+public class ClickInactivitySummary extends ProcessTableFunction<ClickInactivitySummary.Summary> {
 
-@DataTypeHint("ROW<detected_at TIMESTAMP_LTZ(3), click_counts ARRAY<ROW<product_id STRING, product_name STRING, count INT>>>")
-public class ClickInactivitySummary extends ProcessTableFunction<Row> {
+    private static final Duration TIMEOUT = Duration.ofSeconds(10);
 
-    /** Per-user managed state. */
-    public static class ClickState {
-        public Map<String, ProductCount> counts = new HashMap<>();
+    public static class Summary {
+        public String user_id;
+        public int total_clicks;
     }
 
-    /** State value held per product_id. */
-    public static class ProductCount {
-        public String productName;
-        public int count;
+    public static class ClickState {
+        public String userId = "";
+        public int totalClicks = 0;
     }
 
     public void eval(
             Context ctx,
             @StateHint ClickState state,
-            @ArgumentHint({SET_SEMANTIC_TABLE, REQUIRE_ON_TIME}) Row input,
-            int timeoutSecs) {
+            @ArgumentHint({SET_SEMANTIC_TABLE, REQUIRE_ON_TIME}) Row input) {
 
-        String productId   = input.getFieldAs("product_id");
-        String productName = input.getFieldAs("product_name");
+        state.userId = input.getFieldAs("user_id");
 
-        ProductCount pc = state.counts.computeIfAbsent(productId, k -> new ProductCount());
-        pc.productName = productName;
-        pc.count++;
+        // Increment the total click count
+        state.totalClicks++;
 
-        // Re-register the SAME named timer on every click; this resets the inactivity clock.
-        TimeContext<Instant> t = ctx.timeContext(Instant.class);
-        t.registerOnTime("inactivity", t.time().plus(Duration.ofSeconds(timeoutSecs)));
+        // Register or replace a named timer; this resets the inactivity clock
+        TimeContext<Instant> timeCtx = ctx.timeContext(Instant.class);
+        timeCtx.registerOnTime("inactivity", timeCtx.time().plus(TIMEOUT));
     }
 
     public void onTimer(OnTimerContext ctx, ClickState state) {
-        TimeContext<Instant> t = ctx.timeContext(Instant.class);
-
-        Row[] items = state.counts.entrySet().stream()
-                .map(e -> Row.of(e.getKey(), e.getValue().productName, e.getValue().count))
-                .toArray(Row[]::new);
-
-        collect(Row.of(t.time(), items));
+        // Timer fired — no new click arrived within the timeout
+        Summary summary = new Summary();
+        summary.user_id = state.userId;
+        summary.total_clicks = state.totalClicks;
+        collect(summary);
 
         // Reset the partition so a returning user starts a new inactivity window instead of
         // retaining the click counter indefinitely. The fired timer is already consumed, so

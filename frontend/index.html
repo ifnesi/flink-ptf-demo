@@ -314,13 +314,9 @@
                       <div className="summary-head">
                         <span className="time">{fmtTime(s.detected_at)}</span>
                         <span className="who">{s.user}</span>
-                      </div>
-                      <div className="summary-body">
-                        {s.click_counts.map((pc) => (
-                          <span key={pc.product_id} className="chip">
-                            {pc.product_name} <strong>×{pc.count}</strong>
-                          </span>
-                        ))}
+                        <span className="what">
+                          Total clicks: <strong>{s.total_clicks}</strong>
+                        </span>
                       </div>
                     </li>
                   ))}
