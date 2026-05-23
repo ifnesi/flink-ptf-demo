@@ -7,6 +7,9 @@ import org.apache.flink.types.Row;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.table.annotation.ArgumentTrait.REQUIRE_ON_TIME;
 import static org.apache.flink.table.annotation.ArgumentTrait.SET_SEMANTIC_TABLE;
@@ -24,12 +27,12 @@ public class ClickInactivitySummary
     public static class Summary {
         public String user_id;
         public Instant detected_at;
-        public int total_clicks;
+        public String clicks_summary;
     }
 
     public static class ClickState {
         public String userId = "";
-        public int totalClicks = 0;
+        public Map<String, Integer> productClicks = new HashMap<>();
         public Instant detectedAt = null;
     }
 
@@ -41,12 +44,18 @@ public class ClickInactivitySummary
         ) {
 
         String userId = input.getFieldAs("user_id");
-        if (userId == null) {
+        String productName = input.getFieldAs("product_name");
+        if (userId == null || productName == null) {
             return;
         }
 
         state.userId = userId;
-        state.totalClicks++;
+        
+        // Track clicks per product
+        state.productClicks.put(
+            productName,
+            state.productClicks.getOrDefault(productName, 0) + 1
+        );
 
         TimeContext<Instant> timeCtx = ctx.timeContext(Instant.class);
         Instant currentTime = timeCtx.time();
@@ -58,7 +67,7 @@ public class ClickInactivitySummary
     }
 
     public void onTimer(OnTimerContext ctx, ClickState state) {
-        if (state.userId == null || state.userId.isEmpty() || state.totalClicks <= 0 || state.detectedAt == null) {
+        if (state.userId == null || state.userId.isEmpty() || state.productClicks.isEmpty() || state.detectedAt == null) {
             ctx.clearAllState();
             return;
         }
@@ -66,7 +75,13 @@ public class ClickInactivitySummary
         Summary summary = new Summary();
         summary.user_id = state.userId;
         summary.detected_at = state.detectedAt;
-        summary.total_clicks = state.totalClicks;
+        
+        // Format as "Product1:Count1, Product2:Count2, ..."
+        summary.clicks_summary = state.productClicks.entrySet().stream()
+            .sorted(Map.Entry.comparingByKey())
+            .map(e -> e.getKey() + ":" + e.getValue())
+            .collect(Collectors.joining(", "));
+        
         collect(summary);
 
         // Reset the partition so a returning user starts a new inactivity window instead of

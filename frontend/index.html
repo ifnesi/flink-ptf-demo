@@ -311,17 +311,29 @@
                 </div>
               ) : (
                 <ul className="event-list">
-                  {summaries.map((s, i) => (
-                    <li key={i} className="event event-summary">
-                      <div className="summary-head">
-                        <span className="time">{fmtTime(s.detected_at)}</span>
-                        <span className="who">{s.user}</span>
-                        <span className="what">
-                          Total clicks: <strong>{s.total_clicks}</strong>
-                        </span>
-                      </div>
-                    </li>
-                  ))}
+                  {summaries.map((s, i) => {
+                    // Parse "Product1:Count1, Product2:Count2" format
+                    const products = s.clicks_summary ? s.clicks_summary.split(", ").map(p => {
+                      const [name, count] = p.split(":");
+                      return { name, count: parseInt(count) || 0 };
+                    }) : [];
+                    
+                    return (
+                      <li key={i} className="event event-summary">
+                        <div className="summary-head">
+                          <span className="time">{fmtTimeMs(s.detected_at)}</span>
+                          <span className="who">{s.user}</span>
+                        </div>
+                        <div className="summary-body">
+                          {products.map((p, j) => (
+                            <span key={j} className="chip">
+                              {p.name}: <strong>{p.count}</strong>
+                            </span>
+                          ))}
+                        </div>
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
             </div>

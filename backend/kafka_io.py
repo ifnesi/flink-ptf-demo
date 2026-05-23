@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import time
 import queue
 import logging
 import threading
@@ -28,6 +29,7 @@ log = logging.getLogger(__name__)
 
 SCHEMAS_DIR = Path(__file__).resolve().parent.parent / "terraform" / "schemas"
 CLICK_VALUE_SCHEMA = (SCHEMAS_DIR / "user-clicks-value.avsc").read_text()
+WATERMARK_USER = "_wma"
 
 
 @dataclass
@@ -61,7 +63,10 @@ class Settings:
 class PubSub:
     """Fan-out registry. Each subscriber gets its own bounded queue."""
 
-    def __init__(self, maxsize: int = 100) -> None:
+    def __init__(
+        self,
+        maxsize: int = 100,
+    ) -> None:
         self._subscribers: list[queue.Queue] = []
         self._lock = threading.Lock()
         self._maxsize = maxsize
@@ -72,12 +77,18 @@ class PubSub:
             self._subscribers.append(q)
         return q
 
-    def unsubscribe(self, q: queue.Queue) -> None:
+    def unsubscribe(
+        self,
+        q: queue.Queue,
+    ) -> None:
         with self._lock:
             if q in self._subscribers:
                 self._subscribers.remove(q)
 
-    def publish(self, item: Any) -> None:
+    def publish(
+        self,
+        item: Any,
+    ) -> None:
         with self._lock:
             subs = list(self._subscribers)
         for q in subs:
@@ -92,7 +103,10 @@ class PubSub:
 
 
 class KafkaIO:
-    def __init__(self, settings: Settings) -> None:
+    def __init__(
+        self,
+        settings: Settings,
+    ) -> None:
         self.s = settings
         self.clicks_pubsub = PubSub()
         self.summaries_pubsub = PubSub()
@@ -128,7 +142,11 @@ class KafkaIO:
         }
 
     def produce_click(
-        self, user: str, product_id: str, product_name: str, click_ts_ms: int
+        self,
+        user: str,
+        product_id: str,
+        product_name: str,
+        click_ts_ms: int,
     ) -> None:
         value = {
             "user_id": user,
@@ -139,9 +157,19 @@ class KafkaIO:
         topic = self.s.clicks_topic
         self._producer.produce(
             topic=topic,
-            key=self._key_str_ser(user, SerializationContext(topic, MessageField.KEY)),
+            key=self._key_str_ser(
+                user,
+                SerializationContext(
+                    topic,
+                    MessageField.KEY,
+                ),
+            ),
             value=self._click_value_ser(
-                value, SerializationContext(topic, MessageField.VALUE)
+                value,
+                SerializationContext(
+                    topic,
+                    MessageField.VALUE,
+                ),
             ),
             on_delivery=_log_delivery,
         )
@@ -167,6 +195,7 @@ class KafkaIO:
             pubsub=self.summaries_pubsub,
             decoder=self._decode_summary,
         )
+        self._spawn_watermark_thread()
 
     def stop(self) -> None:
         self._stopping.set()
@@ -201,11 +230,17 @@ class KafkaIO:
                     try:
                         key = self._key_str_de(
                             msg.key(),
-                            SerializationContext(topic, MessageField.KEY),
+                            SerializationContext(
+                                topic,
+                                MessageField.KEY,
+                            ),
                         )
                         value = value_de(
                             msg.value(),
-                            SerializationContext(topic, MessageField.VALUE),
+                            SerializationContext(
+                                topic,
+                                MessageField.VALUE,
+                            ),
                         )
                         pubsub.publish(decoder(key, value))
                     except Exception as exc:
@@ -217,6 +252,56 @@ class KafkaIO:
                 log.info("Consumer stopped: topic=%s", topic)
 
         t = threading.Thread(target=_run, daemon=True, name=f"consumer-{topic}")
+        t.start()
+        self._threads.append(t)
+
+    def _spawn_watermark_thread(self) -> None:
+        """Spawn a background thread that publishes watermark advancement messages every second."""
+
+        def _run() -> None:
+            log.info("Watermark advancement thread started")
+            try:
+                while not self._stopping.is_set():
+                    value = {
+                        "user_id": WATERMARK_USER,
+                        "product_id": "0",
+                        "product_name": "watermark",
+                        "click_ts": int(time.time() * 1000),
+                    }
+                    topic = self.s.clicks_topic
+                    try:
+                        self._producer.produce(
+                            topic=topic,
+                            key=self._key_str_ser(
+                                WATERMARK_USER,
+                                SerializationContext(
+                                    topic,
+                                    MessageField.KEY,
+                                ),
+                            ),
+                            value=self._click_value_ser(
+                                value,
+                                SerializationContext(
+                                    topic,
+                                    MessageField.VALUE,
+                                ),
+                            ),
+                            on_delivery=_log_delivery,
+                        )
+                        self._producer.poll(0)
+                    except Exception as exc:
+                        log.warning("Failed to produce watermark message: %s", exc)
+
+                    # Wait second or until stopping
+                    self._stopping.wait(1.0)
+            finally:
+                log.info("Watermark advancement thread stopped")
+
+        t = threading.Thread(
+            target=_run,
+            daemon=True,
+            name="watermark-advancement",
+        )
         t.start()
         self._threads.append(t)
 
@@ -241,7 +326,7 @@ class KafkaIO:
             "type": "summary",
             "user": key,
             "detected_at": value.get("detected_at"),
-            "total_clicks": value.get("total_clicks", 0),
+            "clicks_summary": value.get("clicks_summary", ""),
         }
 
 

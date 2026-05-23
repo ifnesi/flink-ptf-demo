@@ -3,9 +3,9 @@ CREATE TABLE `user-clicks-summary` (
   `key` BYTES,
   `user_id` VARCHAR NOT NULL,
   `detected_at` TIMESTAMP_LTZ(3) NOT NULL,
-  `total_clicks` INT NOT NULL
+  `clicks_summary` VARCHAR NOT NULL
 )
-DISTRIBUTED BY (`key`)
+DISTRIBUTED BY (`key`) INTO 1 BUCKETS
 WITH (
   'key.format' = 'raw',
   'value.format' = 'avro-registry'
