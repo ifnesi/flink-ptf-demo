@@ -141,7 +141,14 @@ resource "confluent_flink_statement" "insert_into_sink" {
   }
 
   statement  = file("${path.module}/sql/02_insert_into_sink.sql")
-  properties = local.flink_statement_properties
+  properties = merge(
+    local.flink_statement_properties,
+    {
+      # We need that so Flink treats quiet source partitions as idle and lets watermarks
+      # advance, which is what allows your event-time inactivity timer to fire.
+      "sql.tables.scan.idle-timeout" = "1s"
+    }
+  )
 
   rest_endpoint = data.confluent_flink_region.demo.rest_endpoint
 
