@@ -43,6 +43,32 @@ In short: **PTFs let your stream generate events from silence.** That's the diff
 
 This demo's `ClickInactivitySummary` is a tiny example of the pattern — the same shape solves cart-abandonment, SLA breach, idle-session, and silent-device problems.
 
+### Watermark Advancement and the Heartbeat Pattern
+
+Event-time timers in PTFs depend on **watermarks** to advance. A watermark is Flink's way of saying "I've seen all events up to time T." When the watermark passes a scheduled timer's timestamp, the timer fires and `onTimer(...)` is called.
+
+**The problem:** If a Kafka partition stops receiving events, its watermark stalls. Your PTF's timer never fires, even if 10 real-world seconds have passed, because event time hasn't advanced. This is especially problematic for inactivity detection—the very scenario where events *stop* arriving is when you need the timer to trigger.
+
+**Why not wall-clock threads?** You might think: "Just spawn a Java thread per user and sleep for 10 seconds." This doesn't scale. With thousands or millions of users, you'd have thousands or millions of threads, each consuming memory and CPU for context switching. Worse, threads don't integrate with Flink's checkpointing, watermarking, or state management—you'd be fighting the framework instead of using it.
+
+**The solution: Heartbeats per partition.** For low traffic / slow moving partitions, emit a lightweight heartbeat event (e.g., every 0.5–1 second) to each Kafka partition. The heartbeat doesn't need meaningful payload, in this example, just a valid `click_ts` timestamp that keeps advancing. This keeps the watermark moving forward, so per-user timers can fire as expected when their inactivity window elapses.
+
+**Why per partition, not per key?** Watermarks are computed **per partition** and then aggregated across partitions. You don't need a heartbeat for every user—just one heartbeat stream per partition (or per Flink bucket if mapped 1:1). With a single partition, a single heartbeat stream is sufficient and efficient.
+
+**Efficiency:** A small heartbeat rate (e.g., 1 Hz) is negligible overhead compared to the complexity and resource cost of managing native threads per key. It's a valid pattern for production-scale inactivity detection.
+
+**Example heartbeat payload:**
+```json
+key = "heartbeat"  # nake sure to be a value that will hash to the partition you want
+value = {
+  "user_id": null,
+  "product_id": null,
+  "product_name": null,
+  "click_ts": 1750713480000
+}
+```
+The payload content is irrelevant—only `click_ts` matters for watermark advancement. The schema must be valid Avro, but the values can be minimal placeholders.
+
 ## Prerequisites
 
 - A [Confluent Cloud](https://confluent.cloud/signup) account with a [**Cloud API key/secret**](https://docs.confluent.io/cloud/current/security/authenticate/workload-identities/service-accounts/api-keys/manage-api-keys.html#add-an-api-key) (organization-level, not Kafka-level)
