@@ -264,10 +264,10 @@ class KafkaIO:
             try:
                 while not self._stopping.is_set():
                     value = {
-                        "user_id": WATERMARK_USER,
-                        "product_id": "0",
-                        "product_name": "watermark",
-                        "click_ts": int(time.time() * 1000),
+                        #"user_id": WATERMARK_USER,
+                        #"product_id": "",
+                        #"product_name": "",
+                        "click_ts": int(time.time() * 1000),  # Set only the timestamp to allow watermark advance
                     }
                     topic = self.s.clicks_topic
                     try:
