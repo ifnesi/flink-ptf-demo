@@ -21,6 +21,12 @@ All Confluent Cloud resources (environment, Kafka Basic cluster in AWS `us-east-
    └──────── SSE Stream ────┘   <─[AVRO Consumer]──  Kafka: user-clicks-summary
 ```
 
+## What This Demo Does
+
+Users log in and click on product tiles (Pizza, Burger, Sushi, etc.). Each click produces an Avro event to the `user-clicks` Kafka topic. The Flink PTF maintains per-user state, tracking how many times each product was clicked. When a user stops clicking for 10 seconds (event-time inactivity), the PTF fires a timer and emits a summary to the `user-clicks-summary` topic showing the breakdown of clicks per product (e.g., "Pizza: 3, Burger: 1"). The summary appears in the UI, and the state is cleared so the next burst of clicks starts fresh. This demonstrates how PTFs can detect the *absence* of activity and generate meaningful events from silence—a pattern applicable to abandoned carts, idle sessions, SLA breaches, and more.
+
+![Demo Screenshot](docs/demo.png)
+
 ## Why PTFs matter
 
 Classic stream processing is purely **reactive** — an operator only runs when an event arrives. If nothing happens, nothing happens. That makes a whole class of real-world problems awkward to express, because they're defined by the **absence** of an event, not its presence:
