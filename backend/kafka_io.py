@@ -29,7 +29,7 @@ log = logging.getLogger(__name__)
 
 SCHEMAS_DIR = Path(__file__).resolve().parent.parent / "terraform" / "schemas"
 CLICK_VALUE_SCHEMA = (SCHEMAS_DIR / "user-clicks-value.avsc").read_text()
-WATERMARK_USER = "_wma"
+HEARTBEAT_USER = "__hb"
 
 
 @dataclass
@@ -264,7 +264,7 @@ class KafkaIO:
             try:
                 while not self._stopping.is_set():
                     value = {
-                        #"user_id": WATERMARK_USER,
+                        #"user_id": HEARTBEAT_USER,
                         #"product_id": "",
                         #"product_name": "",
                         "click_ts": int(time.time() * 1000),  # Set only the timestamp to allow watermark advance
@@ -274,7 +274,7 @@ class KafkaIO:
                         self._producer.produce(
                             topic=topic,
                             key=self._key_str_ser(
-                                WATERMARK_USER,
+                                HEARTBEAT_USER,
                                 SerializationContext(
                                     topic,
                                     MessageField.KEY,

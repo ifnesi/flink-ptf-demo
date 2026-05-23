@@ -45,6 +45,8 @@ public class ClickInactivitySummary
 
         String userId = input.getFieldAs("user_id");
         String productName = input.getFieldAs("product_name");
+
+        // Ignore heartbeat messages
         if (userId == null || productName == null) {
             return;
         }
