@@ -14,42 +14,58 @@ import static org.apache.flink.table.annotation.ArgumentTrait.SET_SEMANTIC_TABLE
 /**
  * Per-user click inactivity summary.
  *
- * Maintains a per-user (partition) total click count.
- * After the configured timeout of event-time inactivity, emits the total click count, then clears state.
+ * For each partition (user_id), count clicks.
+ * When no new click arrives within timeoutSeconds of event-time inactivity,
+ * emit one summary row and clear state.
  */
-public class ClickInactivitySummary extends ProcessTableFunction<ClickInactivitySummary.Summary> {
-
-    private static final Duration TIMEOUT = Duration.ofSeconds(10);
+public class ClickInactivitySummary
+        extends ProcessTableFunction<ClickInactivitySummary.Summary> {
 
     public static class Summary {
         public String user_id;
+        public Instant detected_at;
         public int total_clicks;
     }
 
     public static class ClickState {
         public String userId = "";
         public int totalClicks = 0;
+        public Instant detectedAt = null;
     }
 
     public void eval(
             Context ctx,
             @StateHint ClickState state,
-            @ArgumentHint({SET_SEMANTIC_TABLE, REQUIRE_ON_TIME}) Row input) {
+            @ArgumentHint({SET_SEMANTIC_TABLE, REQUIRE_ON_TIME}) Row input,
+            int timeoutSeconds
+        ) {
 
-        state.userId = input.getFieldAs("user_id");
+        String userId = input.getFieldAs("user_id");
+        if (userId == null) {
+            return;
+        }
 
-        // Increment the total click count
+        state.userId = userId;
         state.totalClicks++;
 
-        // Register or replace a named timer; this resets the inactivity clock
         TimeContext<Instant> timeCtx = ctx.timeContext(Instant.class);
-        timeCtx.registerOnTime("inactivity", timeCtx.time().plus(TIMEOUT));
+        Instant currentTime = timeCtx.time();
+        if (currentTime != null) {
+            Instant detectedAt = currentTime.plus(Duration.ofSeconds(timeoutSeconds));
+            state.detectedAt = detectedAt;
+            timeCtx.registerOnTime("inactivity", detectedAt);
+        }
     }
 
     public void onTimer(OnTimerContext ctx, ClickState state) {
-        // Timer fired — no new click arrived within the timeout
+        if (state.userId == null || state.userId.isEmpty() || state.totalClicks <= 0 || state.detectedAt == null) {
+            ctx.clearAllState();
+            return;
+        }
+
         Summary summary = new Summary();
         summary.user_id = state.userId;
+        summary.detected_at = state.detectedAt;
         summary.total_clicks = state.totalClicks;
         collect(summary);
 

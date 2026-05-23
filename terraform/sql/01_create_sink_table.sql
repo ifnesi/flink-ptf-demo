@@ -1,6 +1,7 @@
 -- Create the sink table for user-clicks-summary
 CREATE TABLE `user-clicks-summary` (
   `key` BYTES,
+  `user_id` VARCHAR NOT NULL,
   `detected_at` TIMESTAMP_LTZ(3) NOT NULL,
   `total_clicks` INT NOT NULL
 )
