@@ -215,6 +215,7 @@ class KafkaIO:
                 "group.id": group_id,
                 "auto.offset.reset": "latest",
                 "enable.auto.commit": True,
+                "isolation.level": "read_uncommitted",
             }
             consumer = Consumer(conf)
             consumer.subscribe([topic])
