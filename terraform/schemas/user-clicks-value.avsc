@@ -3,9 +3,9 @@
   "name": "UserClick",
   "namespace": "io.confluent.demo",
   "fields": [
-    {"name": "user_id",      "type": "string"},
-    {"name": "product_id",   "type": "string"},
-    {"name": "product_name", "type": "string"},
+    {"name": "user_id",      "type": ["null", "string"], "default": null},
+    {"name": "product_id",   "type": ["null", "string"], "default": null},
+    {"name": "product_name", "type": ["null", "string"], "default": null},
     {"name": "click_ts",     "type": {"type": "long", "logicalType": "timestamp-millis"}}
   ]
 }
