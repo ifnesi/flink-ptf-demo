@@ -209,7 +209,9 @@ class KafkaIO:
                         )
                         pubsub.publish(decoder(key, value))
                     except Exception as exc:
-                        log.exception("Failed to decode message from %s: %s", topic, exc)
+                        log.exception(
+                            "Failed to decode message from %s: %s", topic, exc
+                        )
             finally:
                 consumer.close()
                 log.info("Consumer stopped: topic=%s", topic)
@@ -248,5 +250,8 @@ def _log_delivery(err, msg) -> None:
         log.error("Produce failed: %s", err)
     else:
         log.debug(
-            "Produced to %s [%d] @ offset %d", msg.topic(), msg.partition(), msg.offset()
+            "Produced to %s [%d] @ offset %d",
+            msg.topic(),
+            msg.partition(),
+            msg.offset(),
         )

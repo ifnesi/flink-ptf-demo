@@ -15,17 +15,27 @@ import time
 import queue
 import logging
 
-from pathlib import Path
-from typing import Any, Iterator
-from datetime import datetime, timezone
-
-from flask import Flask, Response, jsonify, request, send_from_directory, stream_with_context
 from dotenv import load_dotenv
+from typing import Any, Iterator
+from pathlib import Path
+from datetime import datetime, timezone
+from importlib import reload
+
+from flask import (
+    Flask,
+    Response,
+    jsonify,
+    request,
+    send_from_directory,
+    stream_with_context,
+)
 
 from kafka_io import KafkaIO, PubSub, Settings
 
 load_dotenv()
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s — %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s — %(message)s"
+)
 log = logging.getLogger("flink-ptf-demo")
 
 settings = Settings.from_env()
@@ -83,7 +93,7 @@ def _json_default(o: Any) -> Any:
     raise TypeError(f"Object of type {o.__class__.__name__} is not JSON serializable")
 
 
-def _sse_stream(pubsub: PubSub) -> Iterator[bytes]:
+def _sse_stream(pubsub: PubSub, user_filter: str | None = None) -> Iterator[bytes]:
     q = pubsub.subscribe()
     try:
         # Send a comment line immediately so the client transitions to OPEN.
@@ -95,20 +105,23 @@ def _sse_stream(pubsub: PubSub) -> Iterator[bytes]:
                 # Heartbeat keeps proxies and EventSource alive.
                 yield b": keepalive\n\n"
                 continue
+            # Filter by user if specified
+            if user_filter and event.get("user") != user_filter:
+                continue
             payload = json.dumps(event, separators=(",", ":"), default=_json_default)
             yield f"data: {payload}\n\n".encode()
     finally:
         pubsub.unsubscribe(q)
 
 
-def _sse_response(pubsub: PubSub) -> Response:
+def _sse_response(pubsub: PubSub, user_filter: str | None = None) -> Response:
     headers = {
         "Cache-Control": "no-cache",
         "X-Accel-Buffering": "no",  # disable proxy buffering
         "Connection": "keep-alive",
     }
     return Response(
-        stream_with_context(_sse_stream(pubsub)),
+        stream_with_context(_sse_stream(pubsub, user_filter)),
         mimetype="text/event-stream",
         headers=headers,
     )
@@ -116,14 +129,27 @@ def _sse_response(pubsub: PubSub) -> Response:
 
 @app.get("/stream/clicks")
 def stream_clicks() -> Response:
-    return _sse_response(kio.clicks_pubsub)
+    user = request.args.get("user", "").strip()
+    if not user:
+        return jsonify({"error": "user parameter is required"}), 400
+    return _sse_response(kio.clicks_pubsub, user)
 
 
 @app.get("/stream/summaries")
 def stream_summaries() -> Response:
-    return _sse_response(kio.summaries_pubsub)
+    user = request.args.get("user", "").strip()
+    if not user:
+        return jsonify({"error": "user parameter is required"}), 400
+    return _sse_response(kio.summaries_pubsub, user)
 
 
 if __name__ == "__main__":
     # `flask --app app run -p 5000` is preferred; this is only for direct python execution.
-    app.run(host="127.0.0.1", port=5001, threaded=True)
+    app.run(
+        host="127.0.0.1",
+        port=5001,
+        threaded=True,
+        reload=False,
+        use_reloader=False,
+        debug=True,
+    )

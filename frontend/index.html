@@ -171,10 +171,12 @@
         return d.toLocaleTimeString() + "." + String(d.getMilliseconds()).padStart(3, "0");
       };
 
-      function useEventSource(url) {
+      function useEventSource(url, user) {
         const [items, setItems] = useState([]);
         useEffect(() => {
-          const es = new EventSource(url);
+          if (!user) return;
+          const urlWithUser = `${url}?user=${encodeURIComponent(user)}`;
+          const es = new EventSource(urlWithUser);
           es.onmessage = (ev) => {
             try {
               const parsed = JSON.parse(ev.data);
@@ -183,7 +185,7 @@
           };
           es.onerror = () => console.warn(`SSE error on ${url}`);
           return () => es.close();
-        }, [url]);
+        }, [url, user]);
         return items;
       }
 
@@ -270,9 +272,9 @@
         );
       }
 
-      function EventStream() {
-        const clicks = useEventSource("/stream/clicks");
-        const summaries = useEventSource("/stream/summaries");
+      function EventStream({ user }) {
+        const clicks = useEventSource("/stream/clicks", user);
+        const summaries = useEventSource("/stream/summaries", user);
 
         return (
           <div className="streams">
@@ -371,7 +373,7 @@
                 <p className="muted">
                   Two SSE streams from Flask, fed by background Kafka consumers.
                 </p>
-                <EventStream />
+                <EventStream user={user} />
               </section>
             </main>
           </div>
