@@ -176,6 +176,21 @@ flink-ptf-demo/
 └── frontend/         # Single index.html — React + Babel from CDN, no build step
 ```
 
+## Key Implementation Files
+
+**PTF Implementation:**
+- [ClickInactivitySummary.java](https://github.com/ifnesi/flink-ptf-demo/blob/main/flink-ptf/src/main/java/io/confluent/demo/ptf/ClickInactivitySummary.java) — The Process Table Function implementation
+
+**Terraform Configuration:**
+- [flink.tf](https://github.com/ifnesi/flink-ptf-demo/blob/main/terraform/flink.tf#L53) — Flink function registration and artifact upload
+
+**Schemas:**
+- [user-clicks-value.avsc](https://github.com/ifnesi/flink-ptf-demo/blob/main/terraform/schemas/user-clicks-value.avsc) — Source data Avro schema
+
+**SQL Statements:**
+- [01_create_sink_table.sql](https://github.com/ifnesi/flink-ptf-demo/blob/main/terraform/sql/01_create_sink_table.sql) — Output table creation
+- [02_insert_into_sink.sql](https://github.com/ifnesi/flink-ptf-demo/blob/main/terraform/sql/02_insert_into_sink.sql) — PTF invocation and data insertion
+
 ## References
 
 - [Confluent Flink PTF docs](https://docs.confluent.io/cloud/current/flink/concepts/process-table-functions.html)
