@@ -57,9 +57,10 @@ Event-time timers in PTFs depend on **watermarks** to advance. A watermark is Fl
 
 **Efficiency:** A small heartbeat rate (e.g., 1 Hz) is negligible overhead compared to the complexity and resource cost of managing native threads per key. It's a valid pattern for production-scale inactivity detection.
 
-**Example heartbeat payload:**
+**Example heartbeat payload**
 ```json
-key = "heartbeat"  # nake sure to be a value that will hash to the partition you want
+headers = [{"message_type": "heartbeat"}]
+key = null  # nake sure to be a value that will hash to the partition you want
 value = {
   "user_id": null,
   "product_id": null,
