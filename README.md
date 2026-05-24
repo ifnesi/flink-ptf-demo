@@ -60,7 +60,7 @@ Event-time timers in PTFs depend on **watermarks** to advance. A watermark is Fl
 **Example heartbeat payload**
 ```json
 headers = [{"message_type": "heartbeat"}]
-key = null  # nake sure to be a value that will hash to the partition you want
+key = null
 value = {
   "user_id": null,
   "product_id": null,
