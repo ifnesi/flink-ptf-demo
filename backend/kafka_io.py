@@ -29,7 +29,6 @@ log = logging.getLogger(__name__)
 
 SCHEMAS_DIR = Path(__file__).resolve().parent.parent / "terraform" / "schemas"
 CLICK_VALUE_SCHEMA = (SCHEMAS_DIR / "user-clicks-value.avsc").read_text()
-HEARTBEAT_USER = "__hb"
 
 
 @dataclass
@@ -264,22 +263,17 @@ class KafkaIO:
             try:
                 while not self._stopping.is_set():
                     value = {
-                        #"user_id": HEARTBEAT_USER,
-                        #"product_id": "",
-                        #"product_name": "",
-                        "click_ts": int(time.time() * 1000),  # Set only the timestamp to allow watermark advance
+                        # "user_id": None,
+                        # "product_id": None,
+                        # "product_name": None,
+                        "click_ts": int(
+                            time.time() * 1000
+                        ),  # Set only the timestamp to allow watermark advance
                     }
                     topic = self.s.clicks_topic
                     try:
                         self._producer.produce(
                             topic=topic,
-                            key=self._key_str_ser(
-                                HEARTBEAT_USER,
-                                SerializationContext(
-                                    topic,
-                                    MessageField.KEY,
-                                ),
-                            ),
                             value=self._click_value_ser(
                                 value,
                                 SerializationContext(
@@ -287,6 +281,12 @@ class KafkaIO:
                                     MessageField.VALUE,
                                 ),
                             ),
+                            headers=[
+                                (
+                                    "message_type",
+                                    b"heartbeat",
+                                ),
+                            ],  # Mark as heartbeat for identification
                             on_delivery=_log_delivery,
                         )
                         self._producer.poll(0)
