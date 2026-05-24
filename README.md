@@ -1,4 +1,4 @@
-# Flink PTF Demo — Click Inactivity Detection on Confluent Cloud
+# Flink PTF Demo: Click Inactivity Detection on Confluent Cloud
 
 A self-contained web demo of **Confluent Cloud for Apache Flink Process Table Functions (PTFs)**.
 
