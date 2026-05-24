@@ -34,6 +34,12 @@ variable "flink_max_cfu" {
   default     = 10
 }
 
+variable "inactivity_timeout_seconds" {
+  description = "Number of seconds of inactivity before the PTF emits a summary."
+  type        = number
+  default     = 10
+}
+
 variable "topics" {
   description = "Kafka topics to create on the cluster."
   type = map(object({

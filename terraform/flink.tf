@@ -140,7 +140,9 @@ resource "confluent_flink_statement" "insert_into_sink" {
     id = confluent_service_account.app_demo.id
   }
 
-  statement  = file("${path.module}/sql/02_insert_into_sink.sql")
+  statement = templatefile("${path.module}/sql/02_insert_into_sink.sql", {
+    timeout_seconds = var.inactivity_timeout_seconds
+  })
   properties = local.flink_statement_properties
 
   rest_endpoint = data.confluent_flink_region.demo.rest_endpoint
