@@ -9,7 +9,7 @@ SELECT
     `clicks_summary`
 FROM inactivity_summary(
     input => TABLE `user-clicks` PARTITION BY `user_id`,
-    timeoutSeconds => ${timeout_seconds},
+    timeoutSeconds => ${inactivity_timeout_seconds},
     on_time => DESCRIPTOR(`click_ts`),
     uid => 'user-clicks-summary-v1'
 );

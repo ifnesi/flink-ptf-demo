@@ -141,7 +141,7 @@ resource "confluent_flink_statement" "insert_into_sink" {
   }
 
   statement = templatefile("${path.module}/sql/02_insert_into_sink.sql", {
-    timeout_seconds = var.inactivity_timeout_seconds
+    inactivity_timeout_seconds = var.inactivity_timeout_seconds
   })
   properties = local.flink_statement_properties
 
